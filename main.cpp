@@ -1,29 +1,15 @@
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
-#include <SFML/System.hpp>
-#include <ctime>
-#include <cstdlib>
-#include <sstream>
-#include <iostream>
+#include <SFML/Graphics.hpp> 
+#include <SFML/Window.hpp> 
+#include <SFML/System.hpp> 
+#include <ctime> 
+#include <cstdlib> 
+#include <sstream> 
+#include <iostream> 
 
-std::string intToStr(int n)
-{
-	std::stringstream s;
-	s << n;
-	return s.str();
-}
 
-sf::Color colors[7] = { sf::Color::Red,
-sf::Color::Green,
-sf::Color::Blue,
-sf::Color::Magenta,
-sf::Color::Cyan,
-sf::Color::Yellow,
-sf::Color(255, 128, 0) };
-
-const int WIDTH = 6;
-const int HEIGHT = 10;
-const int SIZE = 20;
+const int WIDTH = 10;
+const int HEIGHT = 20;
+const int SIZE = 32;
 
 void drawQuad(sf::RenderWindow & window, float x, float y, sf::Color c)
 {
@@ -175,13 +161,13 @@ bool SHAPES[][4][4] = {
 	{ 0, 0, 0, 0 },
 	{ 1, 1, 1, 0 },
 	{ 0, 0, 1, 0 } },
-};
+};//Фигурки тетриса
 
 class Part
 {
 private:
 	int shapeIndex;
-	int data[4][4], posX, posY, color;
+	int data[4][4], posX, posY;
 
 	void fillData()
 	{
@@ -193,11 +179,12 @@ private:
 public:
 	Part()
 	{
-		posX = 2;
-		posY = -4;
+		posX = 4;
+		posY = -3;
 		generate();
 	}
 
+	int color;
 	void generate()
 	{
 		int g = (rand() % 7) * 4;
@@ -216,23 +203,12 @@ public:
 
 	}
 
-	void rotate()
-	{
-		int coIndex = shapeIndex;
-		shapeIndex = ((shapeIndex + 1) % 4 == 0 ? shapeIndex - 3 : shapeIndex + 1);
-		fillData();
-		if (!isValid())
-		{
-			shapeIndex = coIndex;
-			fillData();
-		}
-	}
 
 	bool isValid(int xOffset = 0, int yOffset = 0)
 	{
 		for (int y = 0; y < 4; y++)
 		for (int x = 0; x < 4; x++)
-		if ((data[y][x] && (posX + x + xOffset >= WIDTH || posX + xOffset < 0)) || (data[y][x] && (posY + y + yOffset > HEIGHT)))
+		if ((data[y][x] && (posX + x + xOffset >= WIDTH || posX + xOffset < 0)) || (data[y][x] && (posY + y + yOffset > HEIGHT - 1)))
 		{
 			return false;
 		}
@@ -246,7 +222,7 @@ public:
 		for (int m = 0; m < 4; m++)
 		if (data[i][m])
 		{
-			drawQuad(window, (m + posX) * SIZE, (i + posY) * SIZE, colors[color]);
+			drawQuad(window, (m + posX) * SIZE, (i + posY) * SIZE, sf::Color(255, 0, 0));
 		}
 	}
 
@@ -269,8 +245,7 @@ public:
 class Map
 {
 private:
-	int data[10][6];
-	int score;
+	int data[HEIGHT][WIDTH];
 
 public:
 	Map()
@@ -280,7 +255,6 @@ public:
 
 	void reset()
 	{
-		score = 0;
 		for (int y = 0; y < HEIGHT; y++)
 		for (int x = 0; x < WIDTH; x++)
 			data[y][x] = 0;
@@ -305,147 +279,83 @@ public:
 			data[part.getPosY() + y][part.getPosX() + x] = 1;
 	}
 
-	void applyGravity(int h)
-	{
-		for (int y = h; y > -1; y--)
-		for (int x = 0; x < WIDTH; x++)
-		if (y < HEIGHT - 1 && data[y + 1][x] == 0 && data[y][x])
-		{
-			data[y][x] = 0;
-			data[y + 1][x] = 1;
-		}
-	}
-
-	void destroyLines()
-	{
-		for (int y = 0; y < HEIGHT; y++)
-		{
-			bool good = true;
-			for (int x = 0; x < WIDTH; x++)
-			if (!data[y][x])
-			{
-				good = false;
-				break;
-			}
-			if (good)
-			{
-				score++;
-				for (int x = 0; x < WIDTH; x++)
-					data[y][x] = 0;
-				applyGravity(y);
-				y = 0;
-			}
-		}
-	}
-
-	bool isFull()
-	{
-		for (int x = 0; x < WIDTH; x++)
-		if (data[0][x])
-			return true;
-		return false;
-	}
-
 	void draw(sf::RenderWindow & window)
 	{
 		for (int i = 0; i < HEIGHT; i++)
 		for (int m = 0; m < WIDTH; m++)
 		if (data[i][m])
-			drawQuad(window, m * SIZE, i * SIZE, sf::Color::White);
+			drawQuad(window, m * SIZE, i * SIZE, sf::Color(255,0,0));
 	}
 
-	int getScore()
-	{
-		return score;
-	}
 };
 
 int main()
 {
 	srand(time(0));
-	sf::RenderWindow window(sf::VideoMode(6 * SIZE, 10 * SIZE), "", sf::Style::None);
-	window.setFramerateLimit(30);
+	sf::RenderWindow window(sf::VideoMode(WIDTH * SIZE, HEIGHT * SIZE), "Tetris", sf::Style::None);
+	int speed = 120;
+	window.setFramerateLimit(speed);
 
 	Map map;
 	Part part;
 	int tick = 0;
 	bool gameOver = false;
-	sf::Text text("Score: " + intToStr(map.getScore()));
-	text.setPosition(20, 90);
-	text.setCharacterSize(20);
+
 	while (window.isOpen())
 	{
 		sf::Event event;
-		while (window.pollEvent(event))
+		while (window.pollEvent(event))//отработка нажатий 
 		{
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
-				window.close();
-			if (event.type == sf::Event::Closed)
-				window.close();
+			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) window.close();
+
 			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Right)
 			{
-				Part p = part;
-				part.move(1, 0);
+				Part p = part; //отработка коллизий 
+				part.move(1, 0);//движение вправо 
 				if (map.isCollision(part))
 					part = p;
 			}
+
 			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Left)
 			{
 				Part p = part;
-				part.move(-1, 0);
+				part.move(-1, 0);//движение влево 
 				if (map.isCollision(part))
 					part = p;
 			}
+
 			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Down)
 			{
-				while (!map.isCollision(part))
-				{
-					part.move(0, 1);
-				}
-			}
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Up)
-			{
 				Part p = part;
-				part.rotate();
+				part.move(0, 1);//движение вниз(ускоренное) 
 				if (map.isCollision(part))
 					part = p;
 			}
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Return)
-				gameOver = false;
-		}
-		window.clear();
 
-		if (gameOver)
-		{
-			window.draw(text);
-			window.display();
-			continue;
-		}
 
-		if (tick % 30 == 0)
-			part.move(0, 1);
+
+		} //Использование клавиатуры 
+
+		window.clear(sf::Color(0, 0, 0));
+
+		window.setFramerateLimit(speed);
+
+
+		if (tick % 30 == 0) part.move(0, 1);
 
 		if (map.isCollision(part))
 		{
 			map.addPart(part);
-			map.destroyLines();
 			part = Part();
 		}
 
 		map.draw(window);
+
 		part.draw(window);
 
-		if (tick <= 30)
-			tick++;
-		else
-			tick = 1;
+		if (tick <= 30) tick++; else tick = 1;
 
-		if (map.isFull())
-		{
-			text.setString("Score " + intToStr(map.getScore()) + "\n" + "Press enter");
-			map.reset();
-			gameOver = true;
-		}
+
 
 		window.display();
 	}
